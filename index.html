@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="color-scheme" content="light" />
+<title>Medicação — Daniel</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Work+Sans:wght@400;500;600&display=swap');
+
+:root {
+  --bg: #FAF6EF;
+  --card: #FFFFFF;
+  --ink: #262220;
+  --ink-soft: #6B645C;
+  --teal: #3B6E68;
+  --teal-soft: #E4EEEC;
+  --coral: #DD6A50;
+  --coral-soft: #FBE7E1;
+  --sand: #E9E1D2;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color-scheme: light; }
+.loading-screen {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  background: var(--bg); color: var(--ink-soft); font-family: 'Work Sans', Arial, sans-serif;
+}
+.app {
+  min-height: 100vh; background: var(--bg); color: var(--ink);
+  font-family: 'Work Sans', Arial, sans-serif; padding: 28px 18px 60px;
+}
+.hero { max-width: 640px; margin: 0 auto 28px; }
+.eyebrow { font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--teal); margin: 0 0 6px; font-weight: 600; }
+.hero h1 { font-family: 'Fraunces', Georgia, serif; font-size: 40px; font-weight: 600; margin: 0; line-height: 1.05; }
+.dates { color: var(--ink-soft); margin: 4px 0 18px; font-size: 14px; }
+.progress-track { position: relative; height: 22px; border-radius: 999px; background: var(--sand); overflow: hidden; }
+.progress-fill { height: 100%; background: var(--teal); transition: width 0.3s ease; }
+.progress-text { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 11px; font-weight: 600; color: #fff; mix-blend-mode: difference; }
+.cards { max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+.card { background: var(--card); border: 1px solid var(--sand); border-radius: 18px; padding: 20px; }
+.card.double { display: flex; flex-direction: column; gap: 24px; }
+.card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+.card-head h2 { font-family: 'Fraunces', Georgia, serif; font-size: 20px; font-weight: 600; margin: 0 0 3px; }
+.instruction { color: var(--ink-soft); font-size: 13px; margin: 0; }
+.tag { font-size: 11px; font-weight: 600; color: var(--teal); background: var(--teal-soft); padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
+.days-grid { margin-top: 16px; display: flex; gap: 20px; overflow-x: auto; padding-bottom: 4px; }
+.day-col { flex: 0 0 auto; min-width: 92px; }
+.day-label { font-size: 12px; font-weight: 600; color: var(--ink-soft); margin: 0 0 8px; }
+.day-date { font-weight: 400; opacity: 0.7; }
+.day-doses { display: flex; flex-direction: column; gap: 8px; }
+.day-doses.wrap { flex-direction: row; flex-wrap: wrap; margin-top: 14px; }
+.simple-med:not(:last-child) { padding-bottom: 20px; border-bottom: 1px solid var(--sand); }
+.capsule {
+  position: relative; display: flex; align-items: center; gap: 8px;
+  border: 1.5px solid var(--sand); background: var(--card); border-radius: 999px;
+  padding: 8px 14px 8px 8px; cursor: pointer; font-family: 'Work Sans', Arial, sans-serif;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+  text-align: left; width: 100%;
+}
+.capsule:active { transform: scale(0.97); }
+.capsule-half { width: 14px; height: 22px; flex: 0 0 auto; }
+.capsule-left { background: var(--teal); border-radius: 8px 0 0 8px; }
+.capsule-right { background: var(--sand); border-radius: 0 8px 8px 0; margin-left: -14px; clip-path: inset(0 0 0 50%); }
+.capsule-label { display: flex; flex-direction: column; line-height: 1.15; }
+.capsule-line1 { font-size: 13px; font-weight: 600; }
+.capsule-line2 { font-size: 11px; color: var(--ink-soft); }
+.capsule-check { margin-left: auto; color: var(--teal); font-weight: 700; font-size: 14px; }
+.capsule[data-checked="true"] { background: var(--teal-soft); border-color: var(--teal); }
+.capsule[data-checked="true"] .capsule-right { background: var(--teal); }
+.capsule[data-overdue="true"] { border-color: var(--coral); background: var(--coral-soft); }
+.capsule[data-next="true"]:not([data-overdue="true"]) { border-color: var(--teal); box-shadow: 0 0 0 2px var(--teal-soft); }
+.foot { max-width: 640px; margin: 30px auto 0; text-align: center; color: var(--ink-soft); font-size: 12px; }
+@media (min-width: 640px) {
+  .card.double { flex-direction: row; }
+  .simple-med { flex: 1; }
+  .simple-med:not(:last-child) { border-bottom: none; border-right: 1px solid var(--sand); padding-bottom: 0; padding-right: 24px; }
+}
+</style>
+</head>
+<body>
+<div id="root"><div class="loading-screen"><span>carregando…</span></div></div>
+<script>
+"use strict";
+
+// ---- schedule ------------------------------------------------------------
+
+function generateTimedDoses(start, intervalHours, totalDays) {
+  const dosesPerDay = 24 / intervalHours;
+  const total = dosesPerDay * totalDays;
+  const out = [];
+  for (let i = 0; i < total; i++) {
+    const dt = new Date(start.getTime() + i * intervalHours * 3600 * 1000);
+    out.push({ day: Math.floor(i / dosesPerDay) + 1, time: dt });
+  }
+  return out;
+}
+
+function generateDailyDoses(startDay, timesOfDay, totalDays) {
+  const out = [];
+  for (let d = 0; d < totalDays; d++) {
+    timesOfDay.forEach(function (t) {
+      const dt = new Date(startDay.getFullYear(), startDay.getMonth(), startDay.getDate() + d, t.h, t.m);
+      out.push({ day: d + 1, time: dt });
+    });
+  }
+  return out;
+}
+
+const CLARITRO_START = new Date(2026, 6, 1, 12, 20);
+const ACETIL_START = new Date(2026, 6, 1, 8, 0);
+const SALBUTAMOL_START = new Date(2026, 6, 2, 21, 0);
+const INALACAO_START = new Date(2026, 6, 3, 0, 0);
+
+const SCHEDULE = {
+  claritro: {
+    name: "Claritromicina 500mg",
+    instruction: "1 comprimido de 12/12h",
+    kind: "timed",
+    days: 7,
+    doses: generateTimedDoses(CLARITRO_START, 12, 7),
+  },
+  acetil: {
+    name: "Acetilcisteína 200mg",
+    instruction: "1 sachê diluído em água, de 8/8h",
+    kind: "timed",
+    days: 7,
+    doses: generateTimedDoses(ACETIL_START, 8, 7),
+  },
+  salbutamol: {
+    name: "Salbutamol 100mcg",
+    instruction: "3 jatos na boca de 6/6h (+ se crise de falta de ar/chiado/tosse seca)",
+    kind: "timed",
+    days: 7,
+    doses: generateTimedDoses(SALBUTAMOL_START, 6, 7),
+  },
+  inalacao: {
+    name: "Inalação (SF 0,9% + Ipratrópio 30 gotas)",
+    instruction: "3x ao dia",
+    kind: "timed",
+    days: 7,
+    doses: generateDailyDoses(INALACAO_START, [{ h: 6, m: 0 }, { h: 12, m: 0 }, { h: 18, m: 0 }], 7),
+  },
+  loratadina: {
+    name: "Loratadina 10mg",
+    instruction: "1 comprimido, 1x ao dia — sem horário fixo",
+    kind: "daily",
+    days: 5,
+  },
+  prednisona: {
+    name: "Prednisona 20mg",
+    instruction: "1 comprimido, 1x ao dia — sem horário fixo",
+    kind: "daily",
+    days: 5,
+  },
+};
+
+const TIMED_KEYS = ["claritro", "acetil", "salbutamol", "inalacao"];
+const DAILY_KEYS = ["loratadina", "prednisona"];
+const STORAGE_KEY = "med-tracker-state-v2";
+
+function defaultState() {
+  return {
+    claritro: SCHEDULE.claritro.doses.map(function (_, i) { return i === 0; }),
+    acetil: SCHEDULE.acetil.doses.map(function () { return false; }),
+    salbutamol: SCHEDULE.salbutamol.doses.map(function (_, i) { return i < 4; }),
+    inalacao: SCHEDULE.inalacao.doses.map(function () { return false; }),
+    loratadina: Array(5).fill(false),
+    prednisona: Array(5).fill(false),
+  };
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {}
+  return defaultState();
+}
+
+function saveState(state) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+}
+
+function fmtTime(d) { return d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }); }
+function fmtDate(d) { return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }); }
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, function (c) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+  });
+}
+
+// ---- render ----------------------------------------------------------
+
+let state = loadState();
+
+function capsuleHtml(key, idx, checked, overdue, next, label, sub) {
+  return (
+    '<button type="button" class="capsule" data-key="' + key + '" data-idx="' + idx + '" ' +
+    'data-checked="' + checked + '" data-overdue="' + (overdue && !checked) + '" data-next="' + (next && !checked) + '">' +
+    '<span class="capsule-half capsule-left"></span>' +
+    '<span class="capsule-half capsule-right"></span>' +
+    '<span class="capsule-label">' +
+      '<span class="capsule-line1">' + esc(label) + '</span>' +
+      (sub ? '<span class="capsule-line2">' + esc(sub) + '</span>' : '') +
+    '</span>' +
+    (checked ? '<span class="capsule-check">✓</span>' : '') +
+    '</button>'
+  );
+}
+
+function progressBarHtml(done, total) {
+  const pct = total === 0 ? 0 : Math.round((done / total) * 100);
+  return (
+    '<div class="progress-track">' +
+      '<div class="progress-fill" style="width:' + pct + '%"></div>' +
+      '<span class="progress-text">' + done + '/' + total + '</span>' +
+    '</div>'
+  );
+}
+
+function render() {
+  const now = new Date();
+  let totalDone = 0, totalAll = 0;
+  Object.keys(SCHEDULE).forEach(function (key) {
+    totalDone += state[key].filter(Boolean).length;
+    totalAll += state[key].length;
+  });
+
+  let cardsHtml = "";
+
+  TIMED_KEYS.forEach(function (key) {
+    const med = SCHEDULE[key];
+    const checks = state[key];
+    const done = checks.filter(Boolean).length;
+    const nextIdx = checks.findIndex(function (c) { return !c; });
+
+    const byDay = {};
+    med.doses.forEach(function (d, i) {
+      byDay[d.day] = byDay[d.day] || [];
+      byDay[d.day].push({ time: d.time, idx: i });
+    });
+
+    let daysHtml = "";
+    Object.keys(byDay).forEach(function (dayNum) {
+      const doses = byDay[dayNum];
+      let dosesHtml = "";
+      doses.forEach(function (d) {
+        dosesHtml += capsuleHtml(key, d.idx, checks[d.idx], d.time < now, d.idx === nextIdx, fmtTime(d.time), null);
+      });
+      daysHtml +=
+        '<div class="day-col">' +
+          '<p class="day-label">Dia ' + dayNum + ' <span class="day-date">' + fmtDate(doses[0].time) + '</span></p>' +
+          '<div class="day-doses">' + dosesHtml + '</div>' +
+        '</div>';
+    });
+
+    cardsHtml +=
+      '<section class="card">' +
+        '<div class="card-head"><div><h2>' + esc(med.name) + '</h2><p class="instruction">' + esc(med.instruction) + '</p></div>' +
+        '<span class="tag">' + med.days + ' dias</span></div>' +
+        progressBarHtml(done, checks.length) +
+        '<div class="days-grid">' + daysHtml + '</div>' +
+      '</section>';
+  });
+
+  let simpleMedsHtml = "";
+  DAILY_KEYS.forEach(function (key) {
+    const med = SCHEDULE[key];
+    const checks = state[key];
+    const done = checks.filter(Boolean).length;
+    let dosesHtml = "";
+    checks.forEach(function (c, i) {
+      dosesHtml += capsuleHtml(key, i, c, false, false, "Dia " + (i + 1), null);
+    });
+    simpleMedsHtml +=
+      '<div class="simple-med">' +
+        '<div class="card-head"><div><h2>' + esc(med.name) + '</h2><p class="instruction">' + esc(med.instruction) + '</p></div>' +
+        '<span class="tag">' + med.days + ' dias</span></div>' +
+        progressBarHtml(done, checks.length) +
+        '<div class="day-doses wrap">' + dosesHtml + '</div>' +
+      '</div>';
+  });
+  cardsHtml += '<section class="card double">' + simpleMedsHtml + '</section>';
+
+  const html =
+    '<div class="app">' +
+      '<header class="hero">' +
+        '<p class="eyebrow">painel de medicação</p>' +
+        '<h1>Daniel</h1>' +
+        '<p class="dates">01 – 09 de julho de 2026</p>' +
+        progressBarHtml(totalDone, totalAll) +
+      '</header>' +
+      '<main class="cards">' + cardsHtml + '</main>' +
+      '<footer class="foot"><p>toque numa cápsula para marcar como tomada · toque de novo para desfazer</p></footer>' +
+    '</div>';
+
+  document.getElementById("root").innerHTML = html;
+}
+
+document.getElementById("root").addEventListener("click", function (e) {
+  const btn = e.target.closest(".capsule");
+  if (!btn) return;
+  const key = btn.getAttribute("data-key");
+  const idx = parseInt(btn.getAttribute("data-idx"), 10);
+  state[key][idx] = !state[key][idx];
+  saveState(state);
+  render();
+});
+
+render();
+setInterval(render, 60000);
+</script>
+</body>
+</html>
